@@ -55,7 +55,7 @@ def translate(path, code: CodeWriter):
 
 def main():
 
-    path = "BasicTest.vm"
+    path = "StackTest.vm"
 
     code = CodeWriter(path)
 

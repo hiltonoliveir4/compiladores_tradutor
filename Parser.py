@@ -16,7 +16,7 @@ class Parser:
             # lê todas as linhas do arquivo
             lines = map(lambda line: line.split(), f.readlines())
             # salva todas as linhas que não são comentários (inicio em //)
-            tokens = list(filter(lambda x: x[0][0:2] != "//", lines))
+            tokens = list(filter(lambda x: x != [] and x[0] != '' and x[0][0:2] != "//", lines))
 
             # em uma lista e retorna
             return tokens
