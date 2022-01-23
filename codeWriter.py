@@ -1,24 +1,26 @@
 class CodeWriter:
 
     def __init__(self, path):
-        self.output = open("./projects/"+path+".vm", "w+")
+        self.path = f"{path.replace('.vm','.asm')}"
+        self.module_name = path.split("/")[-1].replace(".vm", "")
+        self.func_name = ""
+        self.label_count = 0
+        self.call_count = 0
+        self.return_sub_count = 0
+
+        with open(self.path, "w") as f:
+            f.write("")
 
     def write(self, valor):
         self.output.writelines("{}\n".format(valor))
-
-    # def writeInit(self):
-    #   self.write("@256")
-    #   self.write("D=A")
 
     def segmentPointer(self, seg, index):
         if seg == "local":
             return "LCL"
         elif seg == "argument":
             return "ARG"
-        elif seg == "this":
-            return "THIS"
-        elif seg == "that":
-            return "THAT"
+        elif seg == "this" or seg == "that":
+            return seg.upper()
         elif seg == "temp":
             return self.output.writelines("R{}\n".format(5+index))
         elif seg == "pointer":
@@ -27,6 +29,120 @@ class CodeWriter:
             return self.output.writelines("{}".format(index))
         else:
             return "ERROR"
+
+    def writeInit(self):
+        self.write("@256")
+        self.write("D=A")
+        self.write("@SP")
+        self.write("M=D")
+        self.write("Sys.init", 0)
+        # self.writeSubRotineReturn()
+        self.writeSubArithmeticLt()
+        self.writeSubArithmeticGt()
+        self.writeSubArithmeticEq()
+        # self.writeSubFrame()
+
+    def writeSubArithmeticEq(self):
+        self.write("($EQ$)")
+        self.write("@R15")
+        self.write("M=D")
+
+        label = self.output.writelines(
+            "JEQ_{}_{}\n".format(self.module_name, self.label_count))
+        self.write("@SP // eq")
+        self.write("AM=M-1")
+        self.write("D=M")
+        self.write("@SP")
+        self.write("AM=M-1")
+        self.write("D=M-D")
+        self.write("@" + label)
+        self.write("D;JEQ")
+        self.write("D=1")
+        self.write("(" + label + ")")
+        self.write("D=D-1")
+        self.write("@SP")
+        self.write("A=M")
+        self.write("M=D")
+        self.write("@SP")
+        self.write("M=M+1")
+
+        self.label_count += 1
+
+        self.write("@R15")
+        self.write("A=M")
+        self.write("0;JMP")
+
+    def writeSubArithmeticGt(self):
+        self.write("($GT$)")
+        self.write("@R15")
+        self.write("M=D")
+
+        labelTrue = self.output.writelines(
+            "JGT_TRUE_{}_{}\n".format(self.module_name, self.label_count))
+        labelFalse = self.output.writelines(
+            "JGT_FALSE_{}_{}\n".format(self.module_name, self.label_count))
+
+        self.write("@SP // gt")
+        self.write("AM=M-1")
+        self.write("D=M")
+        self.write("@SP")
+        self.write("AM=M-1")
+        self.write("D=M-D")
+        self.write("@" + labelTrue)
+        self.write("D;JGT")
+        self.write("D=0")
+        self.write("@" + labelFalse)
+        self.write("0;JMP")
+        self.write("(" + labelTrue + ")")
+        self.write("D=-1")
+        self.write("(" + labelFalse + ")")
+        self.write("@SP")
+        self.write("A=M")
+        self.write("M=D")
+        self.write("@SP")
+        self.write("M=M+1")
+
+        self.label_count += 1
+
+        self.write("@R15")
+        self.write("A=M")
+        self.write("0;JMP")
+
+    def writeSubArithmeticLt(self):
+        self.write("($LT$)")
+        self.write("@R15")
+        self.write("M=D")
+
+        labelTrue = self.output.writelines(
+            "JLT_TRUE_{}_{}\n".format(self.module_name, self.label_count))
+        labelFalse = self.output.writelines(
+            "JLT_FALSE_{}_{}\n".format(self.module_name, self.label_count))
+
+        self.write("@SP // lt")
+        self.write("AM=M-1")
+        self.write("D=M")
+        self.write("@SP")
+        self.write("AM=M-1")
+        self.write("D=M-D")
+        self.write("@" + labelTrue + "")
+        self.write("D;JLT")
+        self.write("D=0")
+        self.write("@" + labelFalse + "")
+        self.write("0;JMP")
+        self.write("(" + labelTrue + ")")
+        self.write("D=-1")
+        self.write("(" + labelFalse + ")")
+        self.write("@SP")
+        self.write("A=M")
+        self.write("M=D")
+        self.write("@SP")
+        self.write("M=M+1")
+
+        self.label_count += 1
+
+        self.write("@R15")
+        self.write("A=M")
+        self.write("0;JMP")
 
     def writePush(self, segment, index):
         if segment == "constant":
@@ -59,6 +175,8 @@ class CodeWriter:
             self.write("M=D")
             self.write("@SP")
             self.write("M=M+1")
+        else:
+            pass
 
     def writePop(self, segment, index):
         if segment == "static" or segment == "temp" or segment == "pointer":
@@ -85,26 +203,30 @@ class CodeWriter:
             self.write("@R13")
             self.write("A=M")
             self.write("M=D")
+        else:
+            pass
 
     def writeArithmetic(self, cmd):
-        if cmd.Name == "add":
+        if cmd[0] == "add":
             self.writeArithmeticAdd()
-        elif cmd.Name == "sub":
+        elif cmd[0] == "sub":
             self.writeArithmeticSub()
-        elif cmd.Name == "neg":
+        elif cmd[0] == "neg":
             self.writeArithmeticNeg()
-        elif cmd.Name == "eq":
+        elif cmd[0] == "eq":
             self.writeArithmeticEq()
-        elif cmd.Name == "gt":
+        elif cmd[0] == "gt":
             self.writeArithmeticGt()
-        elif cmd.Name == "lt":
+        elif cmd[0] == "lt":
             self.writeArithmeticLt()
-        elif cmd.Name == "and":
+        elif cmd[0] == "and":
             self.writeArithmeticAnd()
-        elif cmd.Name == "or":
+        elif cmd[0] == "or":
             self.writeArithmeticOr()
-        elif cmd.Name == "not":
+        elif cmd[0] == "not":
             self.writeArithmeticNot()
+        else:
+            pass
 
     def writeBinaryArithmetic(self):
         self.write("@SP")
