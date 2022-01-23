@@ -2,6 +2,7 @@ class CodeWriter:
 
     def __init__(self, path):
         self.path = f"{path.replace('.vm','.asm')}"
+        self.output = open(self.path)
         self.module_name = path.split("/")[-1].replace(".vm", "")
         self.func_name = ""
         self.label_count = 0
@@ -12,7 +13,9 @@ class CodeWriter:
             f.write("")
 
     def write(self, valor):
-        self.output.writelines("{}\n".format(valor))
+
+        with open(self.path, "a") as f:
+            f.write(valor + "\n")
 
     def segmentPointer(self, seg, index):
         if seg == "local":
@@ -22,11 +25,11 @@ class CodeWriter:
         elif seg == "this" or seg == "that":
             return seg.upper()
         elif seg == "temp":
-            return self.output.writelines("R{}\n".format(5+index))
+            return self.write("R{}\n".format(5+int(index)))
         elif seg == "pointer":
-            return self.output.writelines("R{}\n".format(3+index))
+            return self.write("R{}\n".format(3+int(index)))
         elif seg == "static":
-            return self.output.writelines("{}".format(index))
+            return self.write("{}".format(index))
         else:
             return "ERROR"
 
@@ -47,7 +50,7 @@ class CodeWriter:
         self.write("@R15")
         self.write("M=D")
 
-        label = self.output.writelines(
+        label = self.write(
             "JEQ_{}_{}\n".format(self.module_name, self.label_count))
         self.write("@SP // eq")
         self.write("AM=M-1")
@@ -77,9 +80,9 @@ class CodeWriter:
         self.write("@R15")
         self.write("M=D")
 
-        labelTrue = self.output.writelines(
+        labelTrue = self.write(
             "JGT_TRUE_{}_{}\n".format(self.module_name, self.label_count))
-        labelFalse = self.output.writelines(
+        labelFalse = self.write(
             "JGT_FALSE_{}_{}\n".format(self.module_name, self.label_count))
 
         self.write("@SP // gt")
@@ -113,9 +116,9 @@ class CodeWriter:
         self.write("@R15")
         self.write("M=D")
 
-        labelTrue = self.output.writelines(
+        labelTrue = self.write(
             "JLT_TRUE_{}_{}\n".format(self.module_name, self.label_count))
-        labelFalse = self.output.writelines(
+        labelFalse = self.write(
             "JLT_FALSE_{}_{}\n".format(self.module_name, self.label_count))
 
         self.write("@SP // lt")
@@ -145,9 +148,10 @@ class CodeWriter:
         self.write("0;JMP")
 
     def writePush(self, segment, index):
+        print(segment)
+        print(index)
         if segment == "constant":
-            self.write(self.output.writelines(
-                "{} //" + " push {} {}" .format(index, segment, index)))
+            self.write(f"@{index} // push {segment} {index}")
             self.write("D=A")
             self.write("@SP")
             self.write("A=M")
@@ -155,8 +159,8 @@ class CodeWriter:
             self.write("@SP")
             self.write("M = M + 1")
         elif segment == "static" or segment == "temp" or segment == "pointer":
-            self.write(self.output.writelines(
-                "{} //" + " push {} {}" .format(self.segmentPointer(segment, index), segment, index)))
+            self.write(
+                "{} //" + " push {} {}" .format(self.segmentPointer(segment, index), segment, index))
             self.write("D=M")
             self.write("@SP")
             self.write("A=M")
@@ -164,10 +168,10 @@ class CodeWriter:
             self.write("@SP")
             self.write("M=M+1")
         elif segment == "local" or segment == "argument" or segment == "this" or segment == "that":
-            self.write(self.output.writelines(
-                "{} //" + " push {} {}" .format(self.segmentPointer(segment, index), segment, index)))
+            self.write(
+                "{} //" + " push {} {}" .format(self.segmentPointer(segment, index), segment, index))
             self.write("D=M")
-            self.write(self.output.writelines("{}" .format(index)))
+            self.write("{}" .format(index))
             self.write("A=D+A")
             self.write("D=M")
             self.write("@SP")
@@ -180,19 +184,19 @@ class CodeWriter:
 
     def writePop(self, segment, index):
         if segment == "static" or segment == "temp" or segment == "pointer":
-            self.write(self.output.writelines(
-                "@SP //" + " pop {} {}" .format(segment, index)))
+            self.write(
+                "@SP //" + " pop {} {}" .format(segment, index))
             self.write("M=M-1")
             self.write("A=M")
             self.write("D=M")
-            self.write(self.output.writelines(
-                "{}" .format(self.segmentPointer(segment, index))))
+            self.write(
+                "{}" .format(self.segmentPointer(segment, index)))
             self.write("M=D")
         elif segment == "local" or segment == "argument" or segment == "this" or segment == "that":
-            self.write(self.output.writelines(
-                "{} //" + " pop {} {}" .format(self.segmentPointer(segment, index), segment, index)))
+            self.write(
+                f"@{self.segmentPointer(segment, index)} // pop {segment} {index}")
             self.write("D=M")
-            self.write(self.output.writelines("{}" .format(index)))
+            self.write("{}" .format(index))
             self.write("D=D+A")
             self.write("@R13")
             self.write("M=D")
@@ -294,4 +298,4 @@ class CodeWriter:
         self.returnSubCount = self.returnSubCount + 1
 
     def writeClose(self):
-        self.output.Close()
+        self.path.Close()
