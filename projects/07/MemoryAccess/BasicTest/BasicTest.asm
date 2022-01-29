@@ -129,7 +129,7 @@ M=M+1
 M=M-1
 A=M
 D=M
-@@R11
+@R11
 M=D
 @LCL // push local 0
 D=M
@@ -201,7 +201,7 @@ AM=M-1
 D=M
 A=A-1
 M=M-D
-@@R11 // push temp 6
+@R11 // push temp 6
 D=M
 @SP
 A=M

@@ -1,9 +1,11 @@
 class CodeWriter:
 
     def __init__(self, path):
-        self.path = f"{path.replace('.vm','.asm')}"
-        # self.output = open(self.path)
-        self.module_name = path.split("/")[-1].replace(".vm", "")
+        self.path = path.replace('.vm','.asm')
+        if('\\' in path):
+            self.module_name = path.split("\\")[-1].replace(".vm", "")
+        else:    
+            self.module_name = path.split("/")[-1].replace(".vm", "")
         self.func_name = ""
         self.label_count = 0
         self.call_count = 0
@@ -25,9 +27,9 @@ class CodeWriter:
         elif seg == "this" or seg == "that":
             return seg.upper()
         elif seg == "temp":
-            return "@R{}".format(5+int(index))
+            return "R{}".format(5+int(index))
         elif seg == "pointer":
-            return "@R{}".format(3+int(index))
+            return "R{}".format(3+int(index))
         elif seg == "static":
             return "{}.{}".format(self.module_name, index)
         else:
@@ -39,11 +41,9 @@ class CodeWriter:
         self.write("@SP")
         self.write("M=D")
         self.write("Sys.init", 0)
-        # self.writeSubRotineReturn()
         self.writeSubArithmeticLt()
         self.writeSubArithmeticGt()
         self.writeSubArithmeticEq()
-        # self.writeSubFrame()
 
     def writeSubArithmeticEq(self):
         self.write("($EQ$)")
@@ -149,7 +149,7 @@ class CodeWriter:
 
     def writePush(self, segment, index):
         if segment == "constant":
-            self.write(f"@{index} // push {segment} {index}")
+            self.write("@{0} // push {1} {0}".format(index, segment))
             self.write("D=A")
             self.write("@SP")
             self.write("A=M")
@@ -189,8 +189,7 @@ class CodeWriter:
             self.write("@{}".format(self.segmentPointer(segment, index)))
             self.write("M=D")
         elif segment == "local" or segment == "argument" or segment == "this" or segment == "that":
-            self.write(
-                f"@{self.segmentPointer(segment, index)} // pop {segment} {index}")
+            self.write("@{0} // pop {1} {2}".format(self.segmentPointer(segment, index), segment, index))
             self.write("D=M")
             self.write("@{}" .format(index))
             self.write("D=D+A")
@@ -264,31 +263,72 @@ class CodeWriter:
         self.write("M=!M")
 
     def writeArithmeticEq(self):
-        returnAddr = "$RET{}" .format(self.return_sub_count)
-        self.write("@{}" .format(returnAddr))
-        self.write("D=A")
-        self.write("@$EQ$")
-        self.write("0;JMP")
-        self.write("({})" .format(returnAddr))
-        self.return_sub_count = self.return_sub_count + 1
+        label = "JEQ_{0}_{1}".format(self.module_name, self.label_count)
+        self.write("@SP // eq")
+        self.write("AM=M-1")
+        self.write("D=M")
+        self.write("@SP")
+        self.write("AM=M-1")
+        self.write("D=M-D")
+        self.write("@" + label)
+        self.write("D;JEQ")
+        self.write("D=1")
+        self.write("(" + label + ")")
+        self.write("D=D-1")
+        self.write("@SP")
+        self.write("A=M")
+        self.write("M=D")
+        self.write("@SP")
+        self.write("M=M+1")
+        self.label_count += 1
 
     def writeArithmeticGt(self):
-        returnAddr = "$RET{}" .format(self.return_sub_count)
-        self.write("@{}" .format(returnAddr))
-        self.write("D=A")
-        self.write("@$GT$")
+        label_true = "JGT_TRUE_{0}_{1}".format(self.module_name, self.label_count)
+        label_false = "JGT_FALSE_{0}_{1}".format(self.module_name, self.label_count)
+        self.write("@SP // gt")
+        self.write("AM=M-1")
+        self.write("D=M")
+        self.write("@SP")
+        self.write("AM=M-1")
+        self.write("D=M-D")
+        self.write("@" + label_true)
+        self.write("D;JGT")
+        self.write("D=0")
+        self.write("@" + label_false)
         self.write("0;JMP")
-        self.write("({})" .format(returnAddr))
-        self.return_sub_count = self.return_sub_count + 1
+        self.write("(" + label_true + ")")
+        self.write("D=-1")
+        self.write("(" + label_false + ")")
+        self.write("@SP")
+        self.write("A=M")
+        self.write("M=D")
+        self.write("@SP")
+        self.write("M=M+1")
+        self.label_count += 1
 
     def writeArithmeticLt(self):
-        returnAddr = "$RET{}" .format(self.return_sub_count)
-        self.write("@{}" .format(returnAddr))
-        self.write("D=A")
-        self.write("@$LT$")
+        label_true = "JLT_TRUE_{0}_{1}".format(self.module_name, self.label_count)
+        label_false = "JLT_FALSE_{0}_{1}".format(self.module_name, self.label_count)
+        self.write("@SP // lt")
+        self.write("AM=M-1")
+        self.write("D=M")
+        self.write("@SP")
+        self.write("AM=M-1")
+        self.write("D=M-D")
+        self.write("@" + label_true + "")
+        self.write("D;JLT")
+        self.write("D=0")
+        self.write("@" + label_false + "")
         self.write("0;JMP")
-        self.write("({})" .format(returnAddr))
-        self.return_sub_count = self.return_sub_count + 1
+        self.write("(" + label_true + ")")
+        self.write("D=-1")
+        self.write("(" + label_false + ")")
+        self.write("@SP")
+        self.write("A=M")
+        self.write("M=D")
+        self.write("@SP")
+        self.write("M=M+1")
+        self.label_count += 1
 
     def writeClose(self):
         self.path.Close()
